@@ -6,8 +6,12 @@ import concurrent.futures
 from gate_automation.core.models import CandidateCredential
 from gate_automation.infrastructure.browser.playwright_client import PlaywrightPortalClient
 from gate_automation.infrastructure.captcha.factory import CaptchaSolverFactory
+from gate_automation.infrastructure.database import SQLiteResultRepository
 
 st.set_page_config(page_title="GATE Credentials Checker", layout="wide")
+
+# Initialize the UI-accessible database repository
+db_repo = SQLiteResultRepository()
 
 st.title("GATE Students Login Validation")
 st.markdown("Load candidates from the CSV file and check if their stored passwords match the GATE portal.")
@@ -54,15 +58,22 @@ def worker_verify_credential(row_tuple):
     cred = CandidateCredential(enrollment_id=username, password=password)
     try:
         result = client.fetch_candidate_result(cred)
+        # Push to database safely
+        db_repo.save_result(result)
         return idx, row, "done", result
     except Exception as e:
         return idx, row, "error", str(e)
     finally:
         client.close()
 
+    return df
+
 dataset = load_and_clean_data()
-if not dataset.empty:
-    st.subheader("Data Overview")
+tabs = st.tabs(["Check Credentials Flow", "Database Records"])
+
+with tabs[0]:
+    if not dataset.empty:
+        st.subheader("Data Overview")
     st.dataframe(dataset, use_container_width=True)
 
     st.divider()
@@ -126,3 +137,23 @@ if not dataset.empty:
             st.success("All checked passwords were valid! (Or no invalid credentials matched the failure criteria).")
         else:
             st.error(f"Found {len(wrong_users_list)} invalid logins.")
+
+with tabs[1]:
+    st.subheader("Persistent Database Records")
+    st.markdown("This view reads directly from the local `output/gate_results.db` SQLite database.")
+    if st.button("Refresh Database View"):
+        pass # Streamlit natively re-runs the script on button click
+        
+    db_df = db_repo.get_all_results_df()
+    if not db_df.empty:
+        st.dataframe(db_df, use_container_width=True)
+        
+        csv_data = db_df.to_csv(index=False).encode('utf-8')
+        st.download_button(
+            label="Download Database as CSV",
+            data=csv_data,
+            file_name='gate_database_export.csv',
+            mime='text/csv',
+        )
+    else:
+        st.info("The database is currently empty. Run a check to populate it.")
