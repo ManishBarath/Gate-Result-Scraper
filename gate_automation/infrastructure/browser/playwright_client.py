@@ -33,6 +33,13 @@ class PlaywrightPortalClient(PortalClient):
         assert self._context is not None
         self._context.clear_cookies()
         page = self._context.new_page()
+        
+        # Optimization: Block unnecessary heavy network resources
+        page.route("**/*", lambda route: route.abort() 
+            if route.request.resource_type in ["stylesheet", "font", "media"] 
+            else route.continue_()
+        )
+        
         page.set_default_timeout(self.timeout_ms)
         try:
             for attempt in range(1, self.max_captcha_attempts + 1):

@@ -49,24 +49,34 @@ class MathExpressionParser:
             return float(self._allowed_binary_operators[operator_type](left, right))
         raise ValueError('Unsafe or unsupported expression')
 
+@dataclass(slots=True)
 class ManualCaptchaSolver(CaptchaSolver):
 
     def solve(self, image_bytes: bytes) -> str:
         del image_bytes
         return input('Enter captcha answer manually: ').strip()
 
+# Global variable to hold singleton ddddocr instance to save loading time and RAM footprint
+_LAZY_OCR_INSTANCE = None
+
 @dataclass(slots=True)
 class OcrMathCaptchaSolver(CaptchaSolver):
     parser: MathExpressionParser
 
     def solve(self, image_bytes: bytes) -> str:
+        global _LAZY_OCR_INSTANCE
         try:
             import cv2
             import ddddocr
             import numpy as np
         except ImportError as error:
             raise RuntimeError('OCR dependencies missing. Install ddddocr and opencv-python-headless.') from error
-        ocr = ddddocr.DdddOcr(show_ad=False)
+        
+        # Load the ONNX model only once
+        if _LAZY_OCR_INSTANCE is None:
+            _LAZY_OCR_INSTANCE = ddddocr.DdddOcr(show_ad=False)
+        ocr = _LAZY_OCR_INSTANCE
+
         image_array = np.frombuffer(image_bytes, dtype=np.uint8)
         source = cv2.imdecode(image_array, cv2.IMREAD_COLOR)
         if source is None:

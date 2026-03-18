@@ -24,8 +24,30 @@ class SQLiteResultRepository(ResultSink):
         self.save_result(result)
 
     def save_result(self, result: CandidateResult) -> None:
+        self.save_many_results([result])
+
+    def save_many_results(self, results: list[CandidateResult]) -> None:
+        if not results:
+            return
+            
+        # Optimization: Bulk insert using executemany to prevent SQLite locks
+        query = '''
+            INSERT INTO candidate_results (enrollment_id, status, message, data_json, fetched_at)
+            VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(enrollment_id) DO UPDATE SET
+                status=excluded.status,
+                message=excluded.message,
+                data_json=excluded.data_json,
+                fetched_at=excluded.fetched_at
+        '''
+        
+        data_tuples = [
+            (r.enrollment_id, r.status, r.message, json.dumps(r.extracted), r.fetched_at)
+            for r in results
+        ]
+        
         with sqlite3.connect(self._db_path) as conn:
-            conn.execute('\n                INSERT INTO candidate_results (enrollment_id, status, message, data_json, fetched_at)\n                VALUES (?, ?, ?, ?, ?)\n                ON CONFLICT(enrollment_id) DO UPDATE SET\n                    status=excluded.status,\n                    message=excluded.message,\n                    data_json=excluded.data_json,\n                    fetched_at=excluded.fetched_at\n            ', (result.enrollment_id, result.status, result.message, json.dumps(result.extracted), result.fetched_at))
+            conn.executemany(query, data_tuples)
 
     def get_all_results_df(self):
         """Returns a Pandas DataFrame of the currently stored database results."""

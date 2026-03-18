@@ -25,30 +25,57 @@ def load_and_clean_data(file_path='data/Data.csv'):
         df['Password'] = df['Password'].astype(str).str.strip()
     return df
 
-def worker_verify_credential(row_tuple):
-    idx, row = row_tuple
-    username = str(row.get('Username', '')).strip()
-    password = str(row.get('Password', '')).strip()
-    if not username or username.lower() in ['nan', 'na'] or (not password) or (password.lower() in ['nan', 'na']):
-        return (idx, row, 'skip', None)
+def worker_verify_credential_chunk(rows_chunk):
+    results = []
+    # Initialize one Playwright client for this whole chunk to save massive RAM and CPU
     solver = CaptchaSolverFactory.create('ocr')
     client = PlaywrightPortalClient(base_url='https://goaps.iitg.ac.in/login', captcha_solver=solver, headless=True, timeout_ms=15000, max_captcha_attempts=8)
-    cred = CandidateCredential(enrollment_id=username, password=password)
+    
     try:
-        result = client.fetch_candidate_result(cred)
-        db_repo.save_result(result)
-        return (idx, row, 'done', result)
-    except Exception as e:
-        return (idx, row, 'error', str(e))
+        for idx, row in rows_chunk:
+            username = str(row.get('Username', '')).strip()
+            password = str(row.get('Password', '')).strip()
+            
+            if not username or username.lower() in ['nan', 'na'] or (not password) or (password.lower() in ['nan', 'na']):
+                results.append((idx, row, 'skip', None))
+                continue
+                
+            cred = CandidateCredential(enrollment_id=username, password=password)
+            try:
+                result = client.fetch_candidate_result(cred)
+                results.append((idx, row, 'done', result))
+            except Exception as e:
+                results.append((idx, row, 'error', str(e)))
     finally:
+        # Close the browser once ALL rows in this chunk are finished
         client.close()
-    return df
+        
+    return results
 dataset = load_and_clean_data()
+
+# Initialize session state for dataset if not exists so we can edit it inline
+if "edited_dataset" not in st.session_state:
+    st.session_state.edited_dataset = dataset.copy()
+
 tabs = st.tabs(['Check Credentials Flow', 'Database Records'])
 with tabs[0]:
-    if not dataset.empty:
-        st.subheader('Data Overview')
-    st.dataframe(dataset, use_container_width=True)
+    if not st.session_state.edited_dataset.empty:
+        st.subheader('Editable Data Overview')
+        st.markdown("You can edit cells directly, or **delete/add rows** using the table controls. Click **Save Changes** below to apply.")
+    
+    # Use st.data_editor which allows editing, adding, and deleting rows!
+    st.session_state.edited_dataset = st.data_editor(
+        st.session_state.edited_dataset, 
+        use_container_width=True, 
+        num_rows="dynamic", # Enables adding/deleting rows natively in the UI
+        key="data_editor"
+    )
+    
+    if st.button("Save Changes to CSV", type="secondary"):
+        st.session_state.edited_dataset.to_csv('data/Data.csv', index=False)
+        st.success("Changes saved to data/Data.csv successfully!")
+        load_and_clean_data.clear() # Clear cache so next reload fetches fresh data
+
     st.divider()
     st.subheader('Validate Passwords (Multithreaded)')
     st.warning('Note: Checking all records requires automating browser login for each row. The system will use multiple browsers simultaneously to speed this up.')
@@ -56,7 +83,7 @@ with tabs[0]:
     with col1:
         test_limit = st.slider('Max records to test (0 = all)', min_value=0, max_value=len(dataset), value=20)
     with col2:
-        max_workers = st.slider('Concurrent Playwright Bots', min_value=1, max_value=10, value=4, help='More bots = faster, but high numbers may overload your CPU or get temporarily blocked by the GATE server.')
+        max_workers = st.slider('Concurrent Playwright Bots', min_value=1, max_value=20, value=4, help='More bots = faster, but high numbers may overload your CPU or get temporarily blocked by the GATE server.')
     start_check = st.button('Start Checking Passwords', type='primary')
     if start_check:
         progress_bar = st.progress(0)
@@ -64,25 +91,46 @@ with tabs[0]:
         st.markdown('### ❌ Users with Invalid Credentials')
         wrong_users_table = st.empty()
         wrong_users_list = []
-        rows_to_check = dataset if test_limit == 0 else dataset.head(test_limit)
+        rows_to_check = st.session_state.edited_dataset if test_limit == 0 else st.session_state.edited_dataset.head(test_limit)
         total_rows = len(rows_to_check)
         completed = 0
         status_text.text(f'Starting {max_workers} concurrent thread(s)...')
+        
+        # Split dataframe into chunks equal to number of workers to share browser contexts
+        import math
+        chunk_size = max(1, math.ceil(total_rows / max_workers))
+        row_list = list(rows_to_check.iterrows())
+        chunks = [row_list[i:i + chunk_size] for i in range(0, len(row_list), chunk_size)]
+        
+        all_success_results = []
+        
         with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-            futures = {executor.submit(worker_verify_credential, row_tuple): row_tuple for row_tuple in rows_to_check.iterrows()}
+            futures = {executor.submit(worker_verify_credential_chunk, chunk): chunk for chunk in chunks}
+            
             for future in concurrent.futures.as_completed(futures):
-                idx, row, status, result = future.result()
-                completed += 1
-                progress_bar.progress(completed / total_rows)
-                status_text.text(f"Progress ({completed}/{total_rows}) - Just finished checking: {row.get('Username', '')}")
-                if status == 'error':
-                    st.toast(f"Error checking {row.get('Username')}: {result}", icon='⚠️')
-                elif status == 'done' and result.status == 'failed':
-                    msg = result.message.lower()
-                    if 'invalid' in msg or 'incorrect' in msg or 'captcha attempts' in msg:
-                        wrong_users_list.append(row.to_dict())
-                        df_wrong = pd.DataFrame(wrong_users_list)
-                        wrong_users_table.dataframe(df_wrong, use_container_width=True)
+                chunk_results = future.result()
+                
+                for idx, row, status, result in chunk_results:
+                    completed += 1
+                    progress_bar.progress(completed / total_rows)
+                    status_text.text(f"Progress ({completed}/{total_rows}) - Checked: {row.get('Username', '')}")
+                    
+                    if status == 'error':
+                        st.toast(f"Error checking {row.get('Username')}: {result}", icon='⚠️')
+                    elif status == 'done':
+                        if result:
+                            all_success_results.append(result)
+                        if result.status == 'failed':
+                            msg = result.message.lower()
+                            if 'invalid' in msg or 'incorrect' in msg or 'captcha attempts' in msg:
+                                wrong_users_list.append(row.to_dict())
+                                df_wrong = pd.DataFrame(wrong_users_list)
+                                wrong_users_table.dataframe(df_wrong, use_container_width=True)
+                                
+        # Perform ONE bulk database insert instead of locking 259 times
+        if all_success_results:
+            db_repo.save_many_results(all_success_results)
+            
         status_text.success(f'Finished checking {total_rows} records!')
         if not wrong_users_list:
             st.balloons()

@@ -1,4 +1,4 @@
-S.No,Reg No,Name of the Candidate,SEC,Username ,Password
+S.No,Reg No,Name of the Candidate,SEC,Username,Password
 1,23CS001,A Merwin Blessy,A,G199Z35,BlessyAllwyn_22
 2,23CS002,A Mujeeb,A,G107X78,211221PM@
 3,23CS003,A S Senthil Velan,A,G171P76,#Senthil_19
@@ -68,9 +68,9 @@ S.No,Reg No,Name of the Candidate,SEC,Username ,Password
 67,23CS067,Hemalatha M,D,G144X22,Mh@260706
 68,23CS068,Hindujaa S,B,G175G81,Hindujaa$18
 69,23CS069,Inbaselvan Ayyanar,D,G146U52,Inbaselvan*07
-70,23CS070,Ishwarya P,C,G210N57,Ishwarya1506@
+70,23CS070,Ishwarya P,C,G210N57,ishwarya1506@
 71,23CS071,Iyyappan V,D,G194V66,Iyyappan@001
-72,23CS072,Jason Santo Leon J,D,G223E23 ,Jason@2974
+72,23CS072,Jason Santo Leon J,D,G223E23,Jason@2974
 73,23CS073,Jaswant K,B,G186F82,JaswantK@2006
 74,23CS074,Jayakumar K,D,G194C41,Jaya@2005
 75,23CS075,Jayanthi R,B,G199F34,rjayanthi@2006
@@ -122,11 +122,11 @@ S.No,Reg No,Name of the Candidate,SEC,Username ,Password
 121,23CS122,Mithun S,D,G134F22,3Ziqvs*VLd_tVwM
 122,23CS123,Mohamed Faizal M R,B,G177J62,61767875Faiz
 123,23CS124,Mohamed Jaris,D,G135G80,jarsaf2316
-124,23CS125,Mohamed Shafee M,B,              G194B30,@Shafee0304
+124,23CS125,Mohamed Shafee M,B,G194B30,@Shafee0304
 125,23CS126,Mohit Raj S,C,G194A72,Mohitraj@123
 126,23CS127,Monikasree R,C,G176U35,Monikasree@CIT04
 127,23CS128,Monis Ram P R,B,G178C54,monixpr@2005
-128,23CS129,Monish G,B,"G194G29","bring@ 123"
+128,23CS129,Monish G,B,G194G29,bring@ 123
 129,23CS131,Monisha M,B,G175U92,Monis12345@
 130,23CS132,Mugilan M,C,G186W70,STUDYpassword@23
 131,23CS133,Mukesh G,D,G176C56,Mukesh@Mukesh
@@ -134,7 +134,7 @@ S.No,Reg No,Name of the Candidate,SEC,Username ,Password
 133,23CS135,Mullaivendan R,C,G186T42,Mullaivendan@24
 134,23CS136,Nafia Sulthana Nisar Ahmed,C,G175Y84,g9KxEPnucHvrh*4
 135,23CS137,Nanda S,A,G194F33,2GUHT3khgAjm.ci
-136,23CS138,Narendran V C,B,"G137M49",jf.G.$E2MewXJtT
+136,23CS138,Narendran V C,B,G137M49,jf.G.$E2MewXJtT
 137,23CS139,Narmatha G,B,G210D25,Narmathag@8722
 138,23CS140,Naveen Rd,B,G175B69,***Naveen23***
 139,23CS141,Neelesh R,A,G194B73,Neelesh!!03
@@ -143,7 +143,7 @@ S.No,Reg No,Name of the Candidate,SEC,Username ,Password
 142,23CS144,Nijandhan S,A,G194B79,Pb%G9N.aB9mXPN3
 143,23CS145,Nikinth Sasen M S,A,G145C16,niksas@005
 144,23CS146,Nirmal Kumar P,C,G205F55,Nirmal@12345
-145,23CS147,Nirmal Prasath B,A,"G194B81",nirmal@123
+145,23CS147,Nirmal Prasath B,A,G194B81,nirmal@123
 146,23CS148,Nishanth S,C,G194A69,Nissi@21
 147,23CS149,Nishintha A,D,G115P54,Nishi@590
 148,23CS150,Nithesh M,A,G201K88,Nithesh@2005
@@ -181,14 +181,14 @@ S.No,Reg No,Name of the Candidate,SEC,Username ,Password
 180,23CS182,Ramsriprasaath D,D,G114N37,Ramsri@2006
 181,23CS183,Reina Mercy R,D,G194A98,"1a,2b.3c,4d."
 182,23CS184,Revathi G,C,G209V54,revathi@2005
-183,23CS185,Reyna A.T,B,G175T11 ,P@ssword123
+183,23CS185,Reyna A.T,B,G175T11,P@ssword123
 184,23CS186,Ritesh Murugan Naikar,A,G171N85,Plaza@4360
 185,23CS187,Rithick Bharathwaj S,C,G175M55,4B76bTRXrkvQH*!
 186,23CS188,Rithick K,A,G199B78,dhoni07@
 187,23CS189,Rithika D,B,G194B10,Ritu1536!
 188,23CS190,Rithvik Manohar,C,G194A84,open@2zero2zero
 189,23CS191,Rohit Kesav Jegadeesan,B,G175H48,Rohitkj_7
-190,23CS192,Rohith Narayanan M,A,NA,NA
+190,23CS192,Rohith Narayanan M,A,nan,nan
 191,23CS193,Roopa N,B,G175X73,Roopa@2006
 192,23CS194,S Aditya,A,G176X22,@dityaS145990
 193,23CS195,S Alwin Arul Shelvan,A,G172H40,Alwin@007
@@ -214,7 +214,7 @@ S.No,Reg No,Name of the Candidate,SEC,Username ,Password
 213,23CS216,Sharan Prashanth.S,C,G175F45,786292212tH@
 214,23CS217,Shiva Sankaran.S,D,G186P39,Shiva@1106
 215,23CS218,Shivaani V P,B,G222A27,Harshini@2006
-216,23CS219,Shree Charan Kannan,D,NA,NA
+216,23CS219,Shree Charan Kannan,D,nan,nan
 217,23CS220,Shyam Sunder.V,D,G145D94,gate@123
 218,23CS221,Siva V,D,G124F40,Siva@2006
 219,23CS222,Soundharya M,C,G174R49,Soundharya@2006
@@ -242,7 +242,7 @@ S.No,Reg No,Name of the Candidate,SEC,Username ,Password
 241,23CS245,Vishal D,D,G114N39,vish12$$
 242,23CS246,Vishalini M,B,G176J89,Visha@99
 243,23CS247,Vishnu A,C,G144V81,vishnu13
-244,23CS248,Vishnu Priya S,B,             G208P70,S@vishnu24
+244,23CS248,Vishnu Priya S,B,G208P70,S@vishnu24
 245,23CS249,Vishva N,B,G176P21,vishva@cse
 246,23CS250,Vishwa P,A,G194C61,abcd@123#$_&
 247,23CS251,Y P Hans Raynell,A,G175R15,raynell@15
