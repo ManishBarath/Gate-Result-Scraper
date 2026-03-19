@@ -1,4 +1,5 @@
 from __future__ import annotations
+import logging
 import ast
 import operator
 import re
@@ -90,7 +91,7 @@ class OcrMathCaptchaSolver(CaptchaSolver):
         _, buffer = cv2.imencode('.png', final_image)
         processed_bytes = buffer.tobytes()
         raw_text = ocr.classification(processed_bytes)
-        print(f"[DEBUG] OCR detected raw text: '{raw_text}'")
+        logging.debug(f"OCR detected raw expression: '{raw_text}'")
         return self.parser.parse(raw_text)
 
 @dataclass(slots=True)

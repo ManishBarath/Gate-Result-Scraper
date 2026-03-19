@@ -49,6 +49,50 @@ class SQLiteResultRepository(ResultSink):
         with sqlite3.connect(self._db_path) as conn:
             conn.executemany(query, data_tuples)
 
+
+    def execute_query(self, query: str, parameters: tuple = ()) -> None:
+        with sqlite3.connect(self._db_path) as conn:
+            conn.execute(query, parameters)
+            conn.commit()
+            
+    def delete_record(self, enrollment_id: str) -> None:
+        self.execute_query("DELETE FROM candidate_results WHERE enrollment_id=?", (enrollment_id,))
+        
+
+    def clear_database(self) -> None:
+        self.execute_query("DELETE FROM candidate_results")
+
+    def update_records_from_df(self, df) -> None:
+        if df.empty or 'enrollment_id' not in df.columns:
+            return
+            
+        import pandas as pd
+        query = '''
+            UPDATE candidate_results 
+            SET status=?, message=?, data_json=?, fetched_at=?
+            WHERE enrollment_id=?
+        '''
+        data_tuples = []
+        for _, row in df.iterrows():
+            eid = str(row['enrollment_id'])
+            status = str(row.get('status', 'success'))
+            message = str(row.get('message', ''))
+            fetched_at = str(row.get('fetched_at', ''))
+            
+            extracted = {}
+            for col in df.columns:
+                if col not in ['enrollment_id', 'status', 'message', 'fetched_at']:
+                    val = row[col]
+                    if pd.notna(val) and val != "":
+                        extracted[col] = str(val)
+            
+            data_tuples.append((status, message, json.dumps(extracted), fetched_at, eid))
+            
+        with sqlite3.connect(self._db_path) as conn:
+            conn.executemany(query, data_tuples)
+            conn.commit()
+
+
     def get_all_results_df(self):
         """Returns a Pandas DataFrame of the currently stored database results."""
         import pandas as pd

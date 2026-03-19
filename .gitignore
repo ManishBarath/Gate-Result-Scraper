@@ -1,6 +1,29 @@
+# Environments
 .venv/
+.venv2/
+venv/
+env/
+
+# Byte-compiled / optimized / DLL files
 __pycache__/
-*.pyc
-output/results.csv
-.playwright/
+*.py[cod]
+*$py.class
+
+# App-Specific / Data Privacy
+data/
+output/
+
+# Testing
 .pytest_cache/
+.coverage
+htmlcov/
+
+# Tooling
+.playwright/
+
+# OS specific
+.DS_Store
+
+# IDEs
+.vscode/
+.idea/

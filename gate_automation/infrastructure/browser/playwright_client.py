@@ -1,4 +1,6 @@
 from __future__ import annotations
+import logging
+logger = logging.getLogger(__name__)
 import re
 from dataclasses import dataclass
 from gate_automation.core.interfaces import CaptchaSolver, PortalClient
@@ -33,13 +35,13 @@ class PlaywrightPortalClient(PortalClient):
         assert self._context is not None
         self._context.clear_cookies()
         page = self._context.new_page()
-        
+
         # Optimization: Block unnecessary heavy network resources
-        page.route("**/*", lambda route: route.abort() 
-            if route.request.resource_type in ["stylesheet", "font", "media"] 
+        page.route("**/*", lambda route: route.abort()
+            if route.request.resource_type in ["stylesheet", "font", "media"]
             else route.continue_()
         )
-        
+
         page.set_default_timeout(self.timeout_ms)
         try:
             for attempt in range(1, self.max_captcha_attempts + 1):
@@ -49,7 +51,7 @@ class PlaywrightPortalClient(PortalClient):
                 try:
                     captcha_answer = self.captcha_solver.solve(captcha_image)
                 except Exception as solve_error:
-                    print(f'[DEBUG] Captcha internal solve error: {solve_error}. Retrying...')
+                    logger.debug(f'Captcha internal solve error: {solve_error}. Retrying...')
                     if attempt < self.max_captcha_attempts:
                         self._refresh_captcha(page)
                         continue
@@ -57,13 +59,35 @@ class PlaywrightPortalClient(PortalClient):
                         raise solve_error
                 self._fill_captcha_answer(page, captcha_answer)
                 self._submit_login(page)
-                page.wait_for_timeout(2500)
+                try:
+                    page.wait_for_load_state('networkidle', timeout=7000)
+                except:
+                    pass
+                page.wait_for_timeout(3500)
+                
                 if self._is_login_success(page):
+                    try:
+                        view_btn = page.locator("button:has-text('View Result'), a:has-text('View Result'), text=/view result/i").first
+                        view_btn.wait_for(state="visible", timeout=6000)
+                        view_btn.click(force=True, timeout=5000)
+                        logger.info("Clicked 'View Result' popup trigger")
+                        page.wait_for_timeout(4500) 
+                    except Exception as e:
+                        logger.debug(f"View result button not clicked/found: {e}")
+                        pass
+                        
                     extracted = self._extract_result_data(page)
                     return CandidateResult(enrollment_id=credential.enrollment_id, status='success', message='Login success and result page parsed', extracted=extracted)
                 error_message = self._read_login_error(page)
+                
+                # If it's explicitly an invalid username/password error, break immediately
+                # Do not waste 8 captcha attempts when the credential itself is just wrong!
+                if error_message and any(keyword in error_message.lower() for keyword in ["invalid", "incorrect", "wrong"]):
+                    logger.warning(f"Fatal Login Error: {error_message}. Stopping attempts.")
+                    return CandidateResult(enrollment_id=credential.enrollment_id, status='failed', message=error_message)
+
                 if attempt < self.max_captcha_attempts:
-                    print(f'[DEBUG] Attempt {attempt} failed with: {error_message}. Retrying...')
+                    logger.warning(f'Attempt {attempt} failed with: {error_message}. Retrying...')
                     self._refresh_captcha(page)
                     continue
                 return CandidateResult(enrollment_id=credential.enrollment_id, status='failed', message=error_message or 'Login failed')
@@ -176,16 +200,38 @@ class PlaywrightPortalClient(PortalClient):
 
     @staticmethod
     def _extract_result_data(page) -> dict[str, str]:
+        # Expose hidden input values as text so inner_text() captures them easily
+        page.evaluate('''() => {
+            document.querySelectorAll('input').forEach(input => {
+                if (input.value && input.type !== 'hidden') {
+                    let span = document.createElement('span');
+                    span.innerText = " " + input.value + " ";
+                    if (input.parentNode) {
+                        input.parentNode.insertBefore(span, input.nextSibling);
+                    }
+                }
+            });
+        }''')
+
         body_text = page.inner_text('body')
         extracted: dict[str, str] = {'final_url': page.url}
-        patterns = {'name': '(?:Candidate Name|Name)\\s*[:\\-]\\s*([^\\n]+)', 'registration': '(?:Enrollment ID|Registration No\\.?|Application No\\.?)\\s*[:\\-]\\s*([^\\n]+)', 'marks': '(?:Marks|Score)\\s*[:\\-]\\s*([^\\n]+)', 'rank': '(?:AIR|Rank)\\s*[:\\-]\\s*([^\\n]+)', 'gate_score': '(?:GATE Score)\\s*[:\\-]\\s*([^\\n]+)'}
+
+        patterns = {
+            'name': r'(?:Candidate Name|Name)[\s:\-]+([^\n]+)',
+            'registration': r'(?:Registration Number|Enrollment ID|Application No\.?)[\s:\-]+([^\n]+)',
+            'marks': r'(?:Marks out of 100.*?|Marks|Score)[^0-9\-]*(-?\d{1,3}(?:\.\d+)?)',
+            'rank': r'(?:All India Rank.*?|AIR|Rank)[\s:\-]+(\d+)',
+            'gate_score': r'(?:GATE Score)[\s:\-]+(\d+)'
+        }
         for key, pattern in patterns.items():
             match = re.search(pattern, body_text, flags=re.IGNORECASE)
             if match:
                 extracted[key] = match.group(1).strip()
+
         if len(extracted) == 1:
             first_lines = [line.strip() for line in body_text.splitlines() if line.strip()][:10]
             extracted['snapshot'] = ' | '.join(first_lines)
+
         return extracted
 
     def close(self) -> None:
